@@ -8,6 +8,9 @@ from mesoshttp.exception import MesosException
 
 
 class Update(CoreMesosObject):
+    '''
+    This class manages Update message from Mesos master
+    '''
 
     def __init__(self, mesos_url, frameworkId, streamId, mesosUpdate):
         CoreMesosObject.__init__(self, mesos_url, frameworkId, streamId)
@@ -15,6 +18,9 @@ class Update(CoreMesosObject):
         self.mesosUpdate = mesosUpdate
 
     def ack(self):
+        '''
+        Acknowledge an update message
+        '''
         if 'uuid' not in self.mesosUpdate['status']:
             self.logger.debug('Mesos:Ack:Skip')
             return

@@ -10,6 +10,9 @@ from google.protobuf.json_format import MessageToJson
 
 
 class Offer(CoreMesosObject):
+    '''
+    Wrapper class for Mesos offers
+    '''
 
     def __init__(self, mesos_url, frameworkId, streamId, mesosOffer):
         CoreMesosObject.__init__(self, mesos_url, frameworkId, streamId)
@@ -19,6 +22,9 @@ class Offer(CoreMesosObject):
     def accept(self, operations):
         '''
         Accept offer with task operations
+
+        :param operations: Protobuf TaskInfo instances to accept in current offer
+        :type operations: list of protobuf TaskInfo
         '''
         offer_ids = [{'value': self.offer['id']['value']}]
 

@@ -12,6 +12,11 @@ from mesoshttp.update import Update
 
 
 class MesosClient(object):
+    '''
+    Entrypoint class to connect framework to Mesos master
+
+    Instance should be started in a separate thread as `MesosClient.register` will start a blocking loop with a long connection.
+    '''
 
     WAIT_TIME = 10
 
@@ -22,13 +27,19 @@ class MesosClient(object):
 
     class SchedulerDriver(CoreMesosObject):
         '''
-        Handler to communicate with scheduler
+        Handler to communicate with scheduler. `MesosClient.SchedulerDriver` instance is available after the SUBSCRIBED event with the subcribed event.
         '''
         def __init__(self, mesos_url, frameworkId, streamId):
+            '''
+            Create a driver instance related to created framework
+            '''
             CoreMesosObject.__init__(self, mesos_url, frameworkId, streamId)
             self.driver = None
 
         def tearDown(self):
+            '''
+            Undeclare framework
+            '''
             headers = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
@@ -47,8 +58,33 @@ class MesosClient(object):
             except Exception as e:
                 self.logger.error('Mesos:Teardown:Error:' + str(e))
 
-        def request(self):
-            raise NotImplementedError()
+        def request(self, requests):
+            '''
+            Send a REQUEST message
+
+            :param requests: list of resources request [{'agent_id': : XX, 'resources': {}}]
+            :type requests: list
+            '''
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Mesos-Stream-Id': self.streamId
+            }
+
+            revive = {
+                "framework_id": {"value": self.frameworkId},
+                "type": "REQUEST",
+                "requests": requests
+            }
+
+            try:
+                requests.post(
+                    self.mesos_url + '/api/v1/scheduler',
+                    json.dumps(revive),
+                    headers=headers
+                )
+            except Exception as e:
+                raise MesosException(e)
 
         def revive(self):
             '''
@@ -76,7 +112,12 @@ class MesosClient(object):
 
         def kill(self, agent_id, task_id):
             '''
-            Kill current task
+            Kill specified task
+
+            :param agent_id: slave agent_id
+            :type agent_id: str
+            :param task_id: task identifier
+            :type task_id: str
             '''
             self.logger.debug('Kill task %s' % (str(task_id)))
             headers = {
@@ -105,6 +146,11 @@ class MesosClient(object):
         def shutdown(self, agent_id, executor_id):
             '''
             Shutdown an executor
+
+            :param agent_id: slave identifier
+            :type agent_id: str
+            :param executor_id: executor identifier
+            :type executor_id: str
             '''
             self.logger.debug('Shutdown executor %s' % (str(executor_id)))
             headers = {
@@ -133,6 +179,13 @@ class MesosClient(object):
         def message(self, agent_id, executor_id, message):
             '''
             Send message to an executor
+
+            :param agent_id: slave identifier
+            :type agent_id: str
+            :param executor_id: executor identifier
+            :type executor_id: str
+            :param message: message to send, raw bytes encoded as Base64
+            :type message: str
             '''
             self.logger.debug(
                 'Send message to executor %s' % (str(executor_id))
@@ -197,6 +250,11 @@ class MesosClient(object):
             return True
 
     def get_driver(self):
+        '''
+        Get driver instance to dialog with master
+
+        :return: `MesosClient.SchedulerDriver`
+        '''
         if self.driver is None:
             self.driver = MesosClient.SchedulerDriver(
                 self.mesos_url,
@@ -212,7 +270,20 @@ class MesosClient(object):
             frameworkName='Mesos HTTP framework',
             frameworkUser='root',
             max_reconnect=3):
+        '''
+        Create a frameworkId
 
+        :param mesos_urls: list of mesos http endpoints
+        :type mesos_urls: list
+        :param frameworkId: identifier of the framework, if None, will declare a new framework
+        :type frameworkId: str
+        :param frameworkName: name of the framework
+        :type frameworkName: str
+        :param frameworkUser: user to use (will run tasks as user), defaults to root
+        :type frameworkUser: str
+        :param max_reconnect: number of reconnection retries when connection fails
+        :type max_reconnect: int  defaults to 3
+        '''
         self.frameworkId = frameworkId
         self.frameworkName = frameworkName
         self.frameworkUser = frameworkUser
@@ -238,6 +309,11 @@ class MesosClient(object):
     def set_credentials(self, principal, secret):
         '''
         Set credentials to authenticate with Mesos master
+
+        :param principal: login to use
+        :type principal: str
+        :param secret: password
+        :type secret: str
         '''
         self.authenticate = True
         self.principal = principal
@@ -251,7 +327,14 @@ class MesosClient(object):
 
     def on(self, eventName, callback):
         '''
-        Register callback for an event
+        Register callback for an event.
+
+        Multiple callbacks can be registered for the same event
+
+        :param eventName: name fo the event to register to (`MesosClient.SUBSCRIBED`, etc.)
+        :type eventName: str
+        :param callback: function to call on event
+        :type callback: def
         '''
         if eventName == MesosClient.SUBSCRIBED:
             self.callbacks[MesosClient.SUBSCRIBED].append(callback)
@@ -295,8 +378,10 @@ class MesosClient(object):
 
     def register(self):
         '''
-        Register framework, return False if could not connect,
-        else will open a permanent HTTP connection.
+        Register framework, return False if could not connect, else will open a permanent HTTP connection.
+
+        Creates an infinite loop on a permanent connection to Mesos master to receive messages.
+        On message, callbacks will be called.
         '''
         res = False
         for i in range(self.max_reconnect):
@@ -313,10 +398,6 @@ class MesosClient(object):
         return res
 
     def __register(self):
-        '''
-        Register framework, return False if could not connect,
-        else will open a permanent HTTP connection
-        '''
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
