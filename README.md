@@ -9,7 +9,7 @@ On subscribe, you get a driver instance which you can use to send messages to ma
 
 MesosClient must be executed in a separate thread as it keeps a loop pooling connection with the master.
 
-Submitted tasks should be in Protobuf format, library will convert them to JSON format.
+Submitted tasks should be in Protobuf format, library will convert them to JSON format. Tasks can also be directly provided in JSON, up to you to define the TaskInfo in JSON format...
 
 See sample/test.py for example.
 
