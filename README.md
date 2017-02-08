@@ -13,6 +13,11 @@ Submitted tasks should be in Protobuf format, library will convert them to JSON 
 
 See sample/test.py for example.
 
+# Documentation
+
+[![Documentation Status](https://readthedocs.org/projects/osalloupython-mesos-http/badge/?version=latest)](http://osalloupython-mesos-http.readthedocs.io/en/latest/?badge=latest)
+
+
 
 # Status
 
