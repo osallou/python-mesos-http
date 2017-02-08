@@ -1,0 +1,443 @@
+import json
+import time
+import logging
+import socket
+
+import requests
+
+from mesoshttp.offers import Offer
+from mesoshttp.core import CoreMesosObject
+from mesoshttp.exception import MesosException
+from mesoshttp.update import Update
+
+
+class MesosClient(object):
+
+    WAIT_TIME = 10
+
+    SUBSCRIBED = 'SUBSCRIBED'
+    OFFERS = 'OFFERS'
+    ERROR = 'ERROR'
+    UPDATE = 'UPDATE'
+
+    class SchedulerDriver(CoreMesosObject):
+        '''
+        Handler to communicate with scheduler
+        '''
+        def __init__(self, mesos_url, frameworkId, streamId):
+            CoreMesosObject.__init__(self, mesos_url, frameworkId, streamId)
+            self.driver = None
+
+        def tearDown(self):
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Mesos-Stream-Id': self.streamId
+            }
+            teardown = {
+                "framework_id": {"value": self.frameworkId},
+                "type": "TEARDOWN"
+            }
+            try:
+                requests.post(
+                    self.mesos_url + '/api/v1/scheduler',
+                    json.dumps(teardown),
+                    headers=headers
+                )
+            except Exception as e:
+                self.logger.error('Mesos:Teardown:Error:' + str(e))
+
+        def request(self):
+            raise NotImplementedError()
+
+        def revive(self):
+            '''
+            Send REVIVE request
+            '''
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Mesos-Stream-Id': self.streamId
+            }
+
+            revive = {
+                "framework_id": {"value": self.frameworkId},
+                "type": "REVIVE"
+            }
+
+            try:
+                requests.post(
+                    self.mesos_url + '/api/v1/scheduler',
+                    json.dumps(revive),
+                    headers=headers
+                )
+            except Exception as e:
+                raise MesosException(e)
+
+        def kill(self, agent_id, task_id):
+            '''
+            Kill current task
+            '''
+            self.logger.debug('Kill task %s' % (str(task_id)))
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Mesos-Stream-Id': self.streamId
+            }
+            message = {
+                "framework_id": {"value": self.frameworkId},
+                "type": "KILL",
+                "kill": {
+                    "task_id": {'value': task_id},
+                    "agent_id": agent_id
+                }
+            }
+            try:
+                requests.post(
+                    self.mesos_url + '/api/v1/scheduler',
+                    json.dumps(message),
+                    headers=headers
+                )
+            except Exception as e:
+                raise MesosException(e)
+            return True
+
+        def shutdown(self, agent_id, executor_id):
+            '''
+            Shutdown an executor
+            '''
+            self.logger.debug('Shutdown executor %s' % (str(executor_id)))
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Mesos-Stream-Id': self.streamId
+            }
+            message = {
+                "framework_id": {"value": self.frameworkId},
+                "type": "SHUTDOWN",
+                "shutdown": {
+                    "executor_id": {'value': executor_id},
+                    "agent_id": agent_id
+                }
+            }
+            try:
+                requests.post(
+                    self.mesos_url + '/api/v1/scheduler',
+                    json.dumps(message),
+                    headers=headers
+                )
+            except Exception as e:
+                raise MesosException(e)
+            return True
+
+        def message(self, agent_id, executor_id, message):
+            '''
+            Send message to an executor
+            '''
+            self.logger.debug(
+                'Send message to executor %s' % (str(executor_id))
+            )
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Mesos-Stream-Id': self.streamId
+            }
+            message = {
+                "framework_id": {"value": self.frameworkId},
+                "type": "MESSAGE",
+                "message": {
+                    "executor_id": {'value': executor_id},
+                    "agent_id": agent_id,
+                    "data": message
+                }
+            }
+            try:
+                requests.post(
+                    self.mesos_url + '/api/v1/scheduler',
+                    json.dumps(message),
+                    headers=headers
+                )
+            except Exception as e:
+                raise MesosException(e)
+            return True
+
+        def reconcile(self, tasks):
+            '''
+            Reconcile tasks
+
+            :type tasks: list
+            :param tasks: list of dict { "agent_id": xx, "task_id": yy }
+            '''
+            self.logger.debug('Reconcile %s' % (str(tasks)))
+
+            if not tasks:
+                return True
+
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Mesos-Stream-Id': self.streamId
+            }
+            message = {
+                "framework_id": {"value": self.frameworkId},
+                "type": "RECONCILE",
+                "reconcile": {
+                    "tasks": tasks
+                }
+            }
+
+            try:
+                requests.post(
+                    self.mesos_url + '/api/v1/scheduler',
+                    json.dumps(message),
+                    headers=headers
+                )
+            except Exception as e:
+                raise MesosException(e)
+            return True
+
+    def get_driver(self):
+        if self.driver is None:
+            self.driver = MesosClient.SchedulerDriver(
+                self.mesos_url,
+                frameworkId=self.frameworkId,
+                streamId=self.streamId
+            )
+        return self.driver
+
+    def __init__(
+            self,
+            mesos_urls,
+            frameworkId=None,
+            frameworkName='Mesos HTTP framework',
+            frameworkUser='root',
+            max_reconnect=3):
+
+        self.frameworkId = frameworkId
+        self.frameworkName = frameworkName
+        self.frameworkUser = frameworkUser
+        self.mesos_urls = mesos_urls
+        self.mesos_url_index = 0
+        self.max_reconnect = max_reconnect
+        self.driver = None
+        self.streamId = None
+        self.logger = logging.getLogger(__name__)
+        self.stop = False
+        self.callbacks = {
+            MesosClient.SUBSCRIBED: [],
+            MesosClient.OFFERS: [],
+            MesosClient.UPDATE: [],
+            MesosClient.ERROR: []
+        }
+
+        self.authenticate = False
+        self.principal = None
+        self.secret = None
+        self.long_pool = None
+
+    def set_credentials(self, principal, secret):
+        '''
+        Set credentials to authenticate with Mesos master
+        '''
+        self.authenticate = True
+        self.principal = principal
+        self.secret = secret
+
+    def tearDown(self):
+        '''
+        Unregister and stop scheduler
+        '''
+        self.stop = True
+
+    def on(self, eventName, callback):
+        '''
+        Register callback for an event
+        '''
+        if eventName == MesosClient.SUBSCRIBED:
+            self.callbacks[MesosClient.SUBSCRIBED].append(callback)
+        elif eventName == MesosClient.OFFERS:
+            self.callbacks[MesosClient.OFFERS].append(callback)
+        elif eventName == MesosClient.UPDATE:
+            self.callbacks[MesosClient.UPDATE].append(callback)
+        elif eventName == MesosClient.ERROR:
+            self.callbacks[MesosClient.ERROR].append(callback)
+        else:
+            self.logger.error('No event %s' % (eventName))
+            return False
+        return True
+
+    def __event_offers(self, offers):
+        return self.__event_callback(MesosClient.OFFERS, offers)
+
+    def __event_error(self, message):
+        return self.__event_callback(MesosClient.ERROR, message)
+
+    def __event_update(self, update):
+        return self.__event_callback(MesosClient.UPDATE, update)
+
+    def __event_subscribed(self):
+        return self.__event_callback(MesosClient.SUBSCRIBED, self.get_driver())
+
+    def __event_callback(self, event, message):
+        is_ok = True
+        for callback in self.callbacks[event]:
+            try:
+                self.logger.debug(
+                    'Callback %s on %s' % (event, callback.__name__)
+                )
+                callback(message)
+            except Exception as e:
+                is_ok = False
+                self.logger.exception(
+                    'Error in %s callback: %s' % (event, str(e))
+                )
+        return is_ok
+
+    def register(self):
+        '''
+        Register framework, return False if could not connect,
+        else will open a permanent HTTP connection.
+        '''
+        res = False
+        for i in range(self.max_reconnect):
+            try:
+                res = self.__register()
+                break
+            except requests.exceptions.ConnectionError as e:
+                self.logger.error('http connection error: ' + str(e))
+            except socket.timeout as e:
+                self.logger.error('http connection timeout: ' + str(e))
+            time.sleep(MesosClient.WAIT_TIME)
+        else:
+            self.logger.error('All connection tries failed')
+        return res
+
+    def __register(self):
+        '''
+        Register framework, return False if could not connect,
+        else will open a permanent HTTP connection
+        '''
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+        subscribe = {
+            "type": "SUBSCRIBE",
+            "subscribe": {
+                "framework_info": {
+                    "user": self.frameworkUser,
+                    "name": self.frameworkName
+                }
+            }
+        }
+
+        if self.authenticate:
+            subscribe['subscribe']['framework_info']['principal'] = self.principal
+            credentials = [
+                {'principal': self.principal, 'secret': self.secret}
+            ]
+            subscribe['subscribe']['credentials'] = credentials
+
+        if self.frameworkId:
+            subscribe['subscribe']['framework_info']['id'] = {'value': self.frameworkId}
+            subscribe['framework_id'] = {'value': self.frameworkId}
+        ok = False
+        self.long_pool = None
+        while not ok or self.mesos_url_index == len(self.mesos_urls):
+            try:
+                self.mesos_url = self.mesos_urls[self.mesos_url_index]
+                self.logger.warn(
+                    'Try to connect to master: %s' % (self.mesos_url)
+                )
+                self.long_pool = requests.post(
+                    self.mesos_url + '/api/v1/scheduler',
+                    json.dumps(subscribe),
+                    stream=True,
+                    headers=headers
+                )
+                if self.long_pool.status_code == 307:
+                    # Not leader, reconnect to leader
+                    if 'Location' in self.long_pool.headers:
+                        self.mesos_url = self.long_pool.headers['Location']
+                        self.long_pool = requests.post(
+                            self.mesos_url + '/api/v1/scheduler',
+                            json.dumps(subscribe),
+                            stream=True,
+                            headers=headers
+                        )
+                ok = True
+                self.mesos_url_index = 0
+            except Exception:
+                self.mesos_url_index += 1
+        if not self.long_pool.status_code == 200:
+            self.logger.error(
+                'Mesos:Subscribe:Error: ' + str(self.long_pool.text)
+            )
+            return False
+        self.streamId = self.long_pool.headers['Mesos-Stream-Id']
+        first_line = True
+        for line in self.long_pool.iter_lines():
+            if self.stop:
+                if self.driver:
+                    self.driver.tearDown()
+                break
+            # filter out keep-alive new lines
+            if first_line:
+                count_bytes = int(line)
+                first_line = False
+                continue
+            else:
+                body = json.loads(line[:count_bytes])
+                self.logger.debug('Mesos:Event:%s' % (str(body['type'])))
+                self.logger.debug('Mesos:Message:' + str(body))
+                if body['type'] == 'SUBSCRIBED':
+                    self.frameworkId = body['subscribed']['framework_id']['value']
+                    self.logger.info(
+                        'Mesos:Subscribe:Framework-Id:' + self.frameworkId
+                    )
+                    self.logger.info(
+                        'Mesos:Subscribe:Stream-Id:' + self.streamId
+                    )
+                    self.__event_subscribed()
+                elif body['type'] == 'OFFERS':
+                    mesos_offers = body['offers']['offers']
+                    offers = []
+                    for mesos_offer in mesos_offers:
+                        offers.append(
+                            Offer(
+                                self.mesos_url,
+                                frameworkId=self.frameworkId,
+                                streamId=self.streamId,
+                                mesosOffer=mesos_offer
+                            )
+                        )
+                    self.__event_offers(offers)
+                elif body['type'] == 'UPDATE':
+                    mesos_update = body['update']
+                    update_event = Update(
+                        self.mesos_url,
+                        frameworkId=self.frameworkId,
+                        streamId=self.streamId,
+                        mesosUpdate=mesos_update
+                    )
+                    self.__event_update(mesos_update)
+                    update_event.ack()
+                elif body['type'] == 'ERROR':
+                    self.logger.error('Mesos:Error:' + body['error']['message'])
+                    self.__event_error(body['error']['message'])
+                elif body['type'] == 'RESCIND':
+                    self.__event_callback(body['type'], body['rescind'])
+                elif body['type'] == 'MESSAGE':
+                    self.__event_callback(body['type'], body['message'])
+                elif body['type'] == 'FAILURE':
+                    self.__event_callback(body['type'], body['failure'])
+                elif body['type'] == 'HEARTBEAT':
+                    self.logger.debug('Mesos:Heartbeat')
+                else:
+                    self.logger.warn(
+                        '%s event no yet implemented' % (str(body['type']))
+                    )
+
+                if line[count_bytes:]:
+                    count_bytes = int(line[count_bytes:])
+        return True
