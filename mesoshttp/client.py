@@ -392,6 +392,8 @@ class MesosClient(object):
                 self.logger.error('http connection error: ' + str(e))
             except socket.timeout as e:
                 self.logger.error('http connection timeout: ' + str(e))
+            except requests.exceptions.ChunkedEncodingError as e:
+                self.logger.error('http connection error: ' + str(e))
             time.sleep(MesosClient.WAIT_TIME)
         else:
             self.logger.error('All connection tries failed')
