@@ -14,12 +14,15 @@ class Offer(CoreMesosObject):
     Wrapper class for Mesos offers
     '''
 
+    PROTOBUF_FORMAT = 'protobuf'
+    JSON_FORMAT = 'json'
+
     def __init__(self, mesos_url, frameworkId, streamId, mesosOffer):
         CoreMesosObject.__init__(self, mesos_url, frameworkId, streamId)
         self.logger = logging.getLogger(__name__)
         self.offer = mesosOffer
 
-    def accept(self, operations):
+    def accept(self, operations, op_format=Offer.PROTOBUF_FORMAT):
         '''
         Accept offer with task operations
 
@@ -37,15 +40,20 @@ class Offer(CoreMesosObject):
 
         tasks = []
         for operation in operations:
-            if not operation.slave_id.value:
-                operation.slave_id.value = self.offer['agent_id']['value']
-            json_operation = MessageToJson(operation)
-            task = json.loads(json_operation)
-            task['task_id'] = task['taskId']
-            task['agent_id'] = task['slaveId']
-            del task['taskId']
-            del task['slaveId']
-            tasks.append(task)
+            if op_format == Offer.PROTOBUF_FORMAT:
+                if not operation.slave_id.value:
+                    operation.slave_id.value = self.offer['agent_id']['value']
+                json_operation = MessageToJson(operation)
+                task = json.loads(json_operation)
+                task['task_id'] = task['taskId']
+                task['agent_id'] = task['slaveId']
+                del task['taskId']
+                del task['slaveId']
+                tasks.append(task)
+            else:
+                if 'slave_id' not in operation:
+                    operation['slave_id'] = {'value': self.offer['agent_id']['value']}
+                tasks.append(operation)
 
         message = {
             "framework_id": {"value": self.frameworkId},
