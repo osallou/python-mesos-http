@@ -22,7 +22,7 @@ class Offer(CoreMesosObject):
         self.logger = logging.getLogger(__name__)
         self.offer = mesosOffer
 
-    def accept(self, operations, op_format=Offer.PROTOBUF_FORMAT):
+    def accept(self, operations, op_format='protobuf'):
         '''
         Accept offer with task operations
 
