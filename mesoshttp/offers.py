@@ -28,6 +28,8 @@ class Offer(CoreMesosObject):
 
         :param operations: Protobuf TaskInfo instances to accept in current offer
         :type operations: list of protobuf TaskInfo
+        :param op_format: specifies format of operations parameter (protobuf or json)
+        :type op_format: str
         '''
         offer_ids = [{'value': self.offer['id']['value']}]
 
