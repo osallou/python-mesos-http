@@ -130,7 +130,7 @@ class MesosClient(object):
                 "type": "KILL",
                 "kill": {
                     "task_id": {'value': task_id},
-                    "agent_id": agent_id
+                    "agent_id": {'value': agent_id}
                 }
             }
             try:
@@ -140,6 +140,7 @@ class MesosClient(object):
                     headers=headers
                 )
             except Exception as e:
+                self.logger.error('Mesos:Kill:Exception:' + str(e))
                 raise MesosException(e)
             return True
 
@@ -163,7 +164,7 @@ class MesosClient(object):
                 "type": "SHUTDOWN",
                 "shutdown": {
                     "executor_id": {'value': executor_id},
-                    "agent_id": agent_id
+                    "agent_id": {'value': agent_id}
                 }
             }
             try:
@@ -200,7 +201,7 @@ class MesosClient(object):
                 "type": "MESSAGE",
                 "message": {
                     "executor_id": {'value': executor_id},
-                    "agent_id": agent_id,
+                    "agent_id": {'value': agent_id},
                     "data": message
                 }
             }
@@ -503,8 +504,8 @@ class MesosClient(object):
                         streamId=self.streamId,
                         mesosUpdate=mesos_update
                     )
-                    self.__event_update(mesos_update)
                     update_event.ack()
+                    self.__event_update(mesos_update)
                 elif body['type'] == 'ERROR':
                     self.logger.error('Mesos:Error:' + body['error']['message'])
                     self.__event_error(body['error']['message'])
