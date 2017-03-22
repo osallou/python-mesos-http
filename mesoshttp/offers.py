@@ -22,6 +22,9 @@ class Offer(CoreMesosObject):
         self.logger = logging.getLogger(__name__)
         self.offer = mesosOffer
 
+    def get_offer(self):
+        return self.offer
+
     def accept(self, operations, op_format='protobuf'):
         '''
         Accept offer with task operations
@@ -31,6 +34,10 @@ class Offer(CoreMesosObject):
         :param op_format: specifies format of operations parameter (protobuf or json)
         :type op_format: str
         '''
+        if not operations:
+            self.logger.debug('Mesos:Accept:no operation to accept')
+            return True
+
         offer_ids = [{'value': self.offer['id']['value']}]
 
         headers = {
