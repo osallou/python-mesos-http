@@ -306,6 +306,10 @@ class MesosClient(object):
         self.principal = None
         self.secret = None
         self.long_pool = None
+        self.failover_timeout = None
+        self.checkpoint = True
+        self.capabilities = []
+        self.master_info = None
 
     def set_credentials(self, principal, secret):
         '''
@@ -325,6 +329,15 @@ class MesosClient(object):
         Unregister and stop scheduler
         '''
         self.stop = True
+
+
+    def get_master_info(self):
+        '''
+        Get Mesos master information, return None if not connected
+
+        :return: json formatted info about connected Mesos master
+        '''
+        return self.master_info
 
     def on(self, eventName, callback):
         '''
@@ -400,6 +413,34 @@ class MesosClient(object):
             self.logger.error('All connection tries failed')
         return res
 
+
+    def set_failover_timeout(self, timeout):
+        '''
+        Sets failover timeout value
+
+        :param timeout: define framework failover timeout, in seconds
+        :type timeout: int
+        '''
+        self.failover_timeout = timeout
+
+    def set_checkpoint(self, do_checkpoint):
+        '''
+        Sets framework checkpoint value
+
+        :param do_checkpoint: de/activate checkpoint in framework
+        :type do_checkpoint: bool
+        '''
+        self.checkpoint = do_checkpoint
+
+    def add_capability(self, capability):
+        '''
+        Adds a framwork capability
+
+        :param capability: caapbility name
+        :type capability: str
+        '''
+        self.capabilities.append({'type': capability})
+
     def __register(self):
         headers = {
             'Content-Type': 'application/json',
@@ -414,6 +455,12 @@ class MesosClient(object):
                 }
             }
         }
+
+        if self.capabilities:
+            subscribe['subscribe']['framework_info']['capabilities'] = self.capabilities
+
+        if self.failover_timeout:
+            subscribe['subscribe']['framework_info']['failover_timeout'] = self.failover_timeout
 
         if self.authenticate:
             subscribe['subscribe']['framework_info']['principal'] = self.principal
@@ -482,6 +529,7 @@ class MesosClient(object):
                     self.logger.info(
                         'Mesos:Subscribe:Stream-Id:' + self.streamId
                     )
+                    self.master_info = body['subscribed']['master_info']
                     self.__event_subscribed()
                 elif body['type'] == 'OFFERS':
                     mesos_offers = body['offers']['offers']
