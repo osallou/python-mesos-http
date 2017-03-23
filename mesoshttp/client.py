@@ -264,6 +264,15 @@ class MesosClient(object):
             )
         return self.driver
 
+    def disconnect_framework(self):
+        '''
+        Stops framework but does not teardown (unregister) the framework
+
+        This will enable framework reconnection and will not kill running jobs
+        '''
+        self.disconnect = True
+        self.long_pool.connection.close()
+
     def __init__(
             self,
             mesos_urls,
@@ -295,6 +304,7 @@ class MesosClient(object):
         self.streamId = None
         self.logger = logging.getLogger(__name__)
         self.stop = False
+        self.disconnect = False
         self.callbacks = {
             MesosClient.SUBSCRIBED: [],
             MesosClient.OFFERS: [],
@@ -508,8 +518,8 @@ class MesosClient(object):
         self.streamId = self.long_pool.headers['Mesos-Stream-Id']
         first_line = True
         for line in self.long_pool.iter_lines():
-            if self.stop:
-                if self.driver:
+            if self.stop or self.disconnect:
+                if self.stop and self.driver:
                     self.driver.tearDown()
                 break
             # filter out keep-alive new lines
