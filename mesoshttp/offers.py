@@ -6,16 +6,11 @@ import requests
 from mesoshttp.core import CoreMesosObject
 from mesoshttp.exception import MesosException
 
-from google.protobuf.json_format import MessageToJson
-
 
 class Offer(CoreMesosObject):
     '''
     Wrapper class for Mesos offers
     '''
-
-    PROTOBUF_FORMAT = 'protobuf'
-    JSON_FORMAT = 'json'
 
     def __init__(self, mesos_url, frameworkId, streamId, mesosOffer):
         CoreMesosObject.__init__(self, mesos_url, frameworkId, streamId)
@@ -25,44 +20,31 @@ class Offer(CoreMesosObject):
     def get_offer(self):
         return self.offer
 
-    def accept(self, operations, op_format='protobuf'):
+    def accept(self, operations):
         '''
         Accept offer with task operations
 
-        :param operations: Protobuf TaskInfo instances to accept in current offer
-        :type operations: list of protobuf TaskInfo
-        :param op_format: specifies format of operations parameter (protobuf or json)
-        :type op_format: str
+        :param operations: JSON TaskInfo instances to accept in current offer
+        :type operations: list of json TaskInfo
         '''
         if not operations:
             self.logger.debug('Mesos:Accept:no operation to accept')
             return True
 
         offer_ids = [{'value': self.offer['id']['value']}]
+        self.logger.debug('Mesos:ACCEPT Offer ids:' + str(offer_ids))
 
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Mesos-Stream-Id': self.streamId
         }
-        self.logger.debug('Mesos:ACCEPT Offer ids:' + str(offer_ids))
 
         tasks = []
         for operation in operations:
-            if op_format == Offer.PROTOBUF_FORMAT:
-                if not operation.slave_id.value:
-                    operation.slave_id.value = self.offer['agent_id']['value']
-                json_operation = MessageToJson(operation)
-                task = json.loads(json_operation)
-                task['task_id'] = task['taskId']
-                task['agent_id'] = task['slaveId']
-                del task['taskId']
-                del task['slaveId']
-                tasks.append(task)
-            else:
-                if 'slave_id' not in operation:
-                    operation['slave_id'] = {'value': self.offer['agent_id']['value']}
-                tasks.append(operation)
+            if 'slave_id' not in operation:
+                operation['slave_id'] = {'value': self.offer['agent_id']['value']}
+            tasks.append(operation)
 
         message = {
             "framework_id": {"value": self.frameworkId},
@@ -75,13 +57,15 @@ class Offer(CoreMesosObject):
                 }
             }
         }
+        message = json.dumps(message)
         try:
-            requests.post(
+            r = requests.post(
                 self.mesos_url + '/api/v1/scheduler',
-                json.dumps(message),
+                message,
                 headers=headers
             )
-            self.logger.debug('Mesos:Accept:Answer:' + str(message))
+            self.logger.debug('Mesos:Accept:' + str(message))
+            self.logger.debug('Mesos:Accept:Anwser:%d:%s' % (r.status_code, r.text))
         except Exception as e:
             raise MesosException(e)
         return True
