@@ -31,7 +31,7 @@ config = {
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'Natural Language :: English',
         'Operating System :: POSIX :: Linux',
@@ -46,8 +46,7 @@ config = {
     ],
     'install_requires': [
                          'requests',
-                         'twitter.common.recordio',
-                         'protobuf'
+                         'twitter.common.recordio'
                          ],
     'tests_require': ['nose', 'mock', 'flake8'],
     'test_suite': 'nose.collector',

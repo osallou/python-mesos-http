@@ -16,7 +16,8 @@ class MesosClient(object):
     '''
     Entrypoint class to connect framework to Mesos master
 
-    Instance should be started in a separate thread as `MesosClient.register` will start a blocking loop with a long connection.
+    Instance should be started in a separate thread as `MesosClient.register`
+    will start a blocking loop with a long connection.
     '''
 
     WAIT_TIME = 10
@@ -29,7 +30,10 @@ class MesosClient(object):
 
     class SchedulerDriver(CoreMesosObject):
         '''
-        Handler to communicate with scheduler. `MesosClient.SchedulerDriver` instance is available after the SUBSCRIBED event with the subcribed event.
+        Handler to communicate with scheduler
+
+        `MesosClient.SchedulerDriver` instance is available after the
+        SUBSCRIBED event with the subcribed event.
         '''
         def __init__(self, mesos_url, frameworkId, streamId):
             '''
@@ -275,7 +279,13 @@ class MesosClient(object):
         self.disconnect = True
         self.long_pool.connection.close()
 
-    def set_role(role_name):
+    def set_role(self, role_name):
+        '''
+        Set Mesos role to use by framework
+
+        :param role_name: Mesos role name
+        :type role_name: str
+        '''
         self.frameworkRole = role_name
 
     def __init__(
@@ -345,7 +355,6 @@ class MesosClient(object):
         Unregister and stop scheduler
         '''
         self.stop = True
-
 
     def get_master_info(self):
         '''
@@ -433,7 +442,6 @@ class MesosClient(object):
             self.logger.error('All connection tries failed')
         return res
 
-
     def set_failover_timeout(self, timeout):
         '''
         Sets failover timeout value
@@ -494,7 +502,9 @@ class MesosClient(object):
             subscribe['subscribe']['credentials'] = credentials
 
         if self.frameworkId:
-            subscribe['subscribe']['framework_info']['id'] = {'value': self.frameworkId}
+            subscribe['subscribe']['framework_info']['id'] = {
+                'value': self.frameworkId
+            }
             subscribe['framework_id'] = {'value': self.frameworkId}
         ok = False
         self.long_pool = None
