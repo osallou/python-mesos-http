@@ -18,6 +18,11 @@ class Offer(CoreMesosObject):
         self.offer = mesosOffer
 
     def get_offer(self):
+        '''
+        Get offer info received from Mesos
+
+        :return: dict
+        '''
         return self.offer
 
     def accept(self, operations):
@@ -43,7 +48,9 @@ class Offer(CoreMesosObject):
         tasks = []
         for operation in operations:
             if 'slave_id' not in operation:
-                operation['slave_id'] = {'value': self.offer['agent_id']['value']}
+                operation['slave_id'] = {
+                    'value': self.offer['agent_id']['value']
+                }
             tasks.append(operation)
 
         message = {

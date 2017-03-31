@@ -1,6 +1,6 @@
 # Python mesos scheduler HTTP library
 
-This is a Python library to create a Mesos scheduler. It includes the mesos.proto and compiled mesos.proto python modules.
+This is a Python library to create a Mesos scheduler.
 
 It removes the need to use/install Mesos python bindings and makes use of the HTTP API (native bindings are not updated anymore with new features)
 
@@ -18,4 +18,3 @@ Callbacks will "block" the mesos message treatment, so they should be short, or 
 # Documentation
 
 [![Documentation Status](https://readthedocs.org/projects/osalloupython-mesos-http/badge/?version=latest)](http://osalloupython-mesos-http.readthedocs.io/en/latest/?badge=latest)
-
