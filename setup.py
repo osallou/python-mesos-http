@@ -37,7 +37,7 @@ config = {
         'Operating System :: POSIX :: Linux',
         # Indicate who your project is intended for
         'Intended Audience :: Science/Research',
-        'Topic :: Software Development :: Libraries :: Python Modules'
+        'Topic :: Software Development :: Libraries :: Python Modules',
         'License :: OSI Approved :: Apache Software License'
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
