@@ -2,6 +2,7 @@ import json
 import time
 import logging
 import socket
+import sys
 
 import requests
 
@@ -461,6 +462,7 @@ class MesosClient(object):
         self.capabilities.append({'type': capability})
 
     def __register(self):
+        python_version = sys.version_info.major
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
@@ -540,6 +542,8 @@ class MesosClient(object):
                 first_line = False
                 continue
             else:
+                if python_version == 3:
+                    line = line.decode('UTF-8')
                 body = json.loads(line[:count_bytes])
                 self.logger.debug('Mesos:Event:%s' % (str(body['type'])))
                 self.logger.debug('Mesos:Message:' + str(body))
