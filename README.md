@@ -9,7 +9,7 @@ On subscribe, you get a driver instance which you can use to send messages to ma
 
 MesosClient must be executed in a separate thread as it keeps a loop pooling connection with the master.
 
-Submitted tasks should be in Protobuf format, library will convert them to JSON format. Tasks can also be directly provided in JSON, up to you to define the TaskInfo in JSON format...
+Submitted tasks should be in JSON format (according to mesos.proto).
 
 See sample/test.py for example.
 
@@ -19,8 +19,3 @@ Callbacks will "block" the mesos message treatment, so they should be short, or 
 
 [![Documentation Status](https://readthedocs.org/projects/osalloupython-mesos-http/badge/?version=latest)](http://osalloupython-mesos-http.readthedocs.io/en/latest/?badge=latest)
 
-
-
-# Status
-
-Do not use for production or at your own risks....

@@ -10,7 +10,6 @@ import sys
 import uuid
 
 from mesoshttp.client import MesosClient
-from mesoshttp.message import mesos_pb2
 
 class Test(object):
 
@@ -75,34 +74,37 @@ class Test(object):
                 offer.decline()
             i+=1
 
-    def run_job(self, offer):
-        task = mesos_pb2.TaskInfo()
-        container = mesos_pb2.ContainerInfo()
-        container.type = 2  # Mesos
-        tid = uuid.uuid4().hex
-        command = mesos_pb2.CommandInfo()
-        command.value = 'sleep 30'
-        task.command.MergeFrom(command)
-        task.task_id.value = tid
-        # task.slave_id.value = offer.offer.slave_id.value
-        task.name ='sample test'
+    def run_job(self, mesos_offer):
+        offer = mesos_offer.get_offer()
+        print(str(offer))
+        task = {
+            'name': 'sample test',
+            'task_id': {'value': uuid.uuid4().hex},
+            'agent_id': {'value': offer['agent_id']['value']},
+            'resources': [
+            {
+                'name': 'cpus',
+                'type': 'SCALAR',
+                'scalar': {'value': 1}
+            },
+            {
+                'name': 'mem',
+                'type': 'SCALAR',
+                'scalar': {'value': 1000}
+            }
+            ],
+            'command': {'value': 'sleep 30'},
+            'container': {
+                'type': 'MESOS',
+                'mesos': {
+                    'image': {
+                        'type': 'DOCKER',
+                        'docker': {'name': 'debian'}
+                    }
+                }
+            }
+        }
 
-        cpus = task.resources.add()
-        cpus.name = "cpus"
-        cpus.type = mesos_pb2.Value.SCALAR
-        cpus.scalar.value = 1
-
-        mem = task.resources.add()
-        mem.name = "mem"
-        mem.type = mesos_pb2.Value.SCALAR
-        mem.scalar.value =1000
-
-        docker = mesos_pb2.ContainerInfo.MesosInfo()
-        docker.image.type = 2  # Docker
-        docker.image.docker.name = 'debian'
-        container.mesos.MergeFrom(docker)
-        task.container.MergeFrom(container)
-
-        offer.accept([task])
+        mesos_offer.accept([task])
 
 test_mesos = Test()

@@ -24,6 +24,7 @@ class MesosClient(object):
     OFFERS = 'OFFERS'
     ERROR = 'ERROR'
     UPDATE = 'UPDATE'
+    FAILURE = 'FAILURE'
 
     class SchedulerDriver(CoreMesosObject):
         '''
@@ -273,6 +274,9 @@ class MesosClient(object):
         self.disconnect = True
         self.long_pool.connection.close()
 
+    def set_role(role_name):
+        self.frameworkRole = role_name
+
     def __init__(
             self,
             mesos_urls,
@@ -296,6 +300,7 @@ class MesosClient(object):
         '''
         self.frameworkId = frameworkId
         self.frameworkName = frameworkName
+        self.frameworkRole = None
         self.frameworkUser = frameworkUser
         self.mesos_urls = mesos_urls
         self.mesos_url_index = 0
@@ -368,6 +373,8 @@ class MesosClient(object):
             self.callbacks[MesosClient.UPDATE].append(callback)
         elif eventName == MesosClient.ERROR:
             self.callbacks[MesosClient.ERROR].append(callback)
+        elif eventName == MesosClient.FAILURE:
+            self.callbacks[MesosClient.FAILURE].append(callback)
         else:
             self.logger.error('No event %s' % (eventName))
             return False
@@ -387,6 +394,8 @@ class MesosClient(object):
 
     def __event_callback(self, event, message):
         is_ok = True
+        if event not in self.callbacks:
+            self.logger.debug('No callback for %s: %s' % (event, str(message)))
         for callback in self.callbacks[event]:
             try:
                 self.logger.debug(
@@ -465,6 +474,9 @@ class MesosClient(object):
                 }
             }
         }
+
+        if self.frameworkRole:
+            subscribe['subscribe']['framework_info']['role'] = self.frameworkRole
 
         if self.capabilities:
             subscribe['subscribe']['framework_info']['capabilities'] = self.capabilities
