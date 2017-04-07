@@ -25,7 +25,7 @@ config = {
     'author': 'Olivier Sallou',
     'author_email': 'olivier.sallou@irisa.fr',
     'download_url': 'https://github.com/osallou/python-mesos-http',
-    'version': '0.1.0',
+    'version': '0.2.0',
      'classifiers': [
         # How mature is this project? Common values are
         #   3 - Alpha
@@ -46,7 +46,8 @@ config = {
     ],
     'install_requires': [
                          'requests',
-                         'twitter.common.recordio'
+                         'twitter.common.recordio',
+                         'kazoo'
                          ],
     'tests_require': ['nose', 'mock', 'flake8'],
     'test_suite': 'nose.collector',

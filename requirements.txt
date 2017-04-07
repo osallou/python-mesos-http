@@ -1,0 +1,4 @@
+requests
+twitter.common.recordio
+kazoo
+

@@ -11,6 +11,8 @@ from mesoshttp.core import CoreMesosObject
 from mesoshttp.exception import MesosException
 from mesoshttp.update import Update
 
+from kazoo.client import KazooClient
+
 
 class MesosClient(object):
     '''
@@ -469,6 +471,36 @@ class MesosClient(object):
         '''
         self.capabilities.append({'type': capability})
 
+
+    def __zk_detect(self, zk_url, prefix='/mesos'):
+        '''
+        Try to get master url info from zookeeper
+
+        :param zk_url: ip/port to reach zookeeper
+        :type zk_url: str
+        :param prefix: prefix to search for in zookeeper
+        :type prefix: str
+        '''
+        mesos_master = None
+        mesos_prefix = prefix
+        if not prefix.startswith('/'):
+            mesos_prefix = '/' + prefix
+        zk = KazooClient(zk_url)
+        zk.start()
+        childs = zk.get_children(mesos_prefix)
+        for child in childs:
+            if not child.startswith('json'):
+                continue
+            (data, zk_mesos) = zk.get('/mesos/' + child)
+            master_info = json.loads(data)
+            if 'pid' in master_info and master_info['pid'].startswith('master@'):
+                mesos_master = 'http://' + master_info['pid'].replace('master@', '')
+                break
+        zk.stop()
+        self.logger.debug('Zookeeper mesos master: %s' % (str(mesos_master)))
+        return mesos_master
+
+
     def __register(self):
         python_version = sys.version_info.major
         headers = {
@@ -511,6 +543,13 @@ class MesosClient(object):
         while not ok or self.mesos_url_index == len(self.mesos_urls):
             try:
                 self.mesos_url = self.mesos_urls[self.mesos_url_index]
+                if self.mesos_url.startswith('zk://'):
+                    self.logger.debug('Use zookeeper url, try to detect master')
+                    zk_info = self.mesos_url.replace('zk://', '').split('/')
+                    zk_url = self.__zk_detect(zk_info[0], '/'.join(zk_info[1:]))
+                    if zk_url is None:
+                        raise Exception('Could not detect master in zookeeper')
+                    self.mesos_url = zk_url
                 self.logger.warn(
                     'Try to connect to master: %s' % (self.mesos_url)
                 )
@@ -532,8 +571,9 @@ class MesosClient(object):
                         )
                 ok = True
                 self.mesos_url_index = 0
-            except Exception:
+            except Exception as e:
                 self.mesos_url_index += 1
+                self.logger.error('Mesos:Subscribe:Failed for %s: %s' % (self.mesos_url, str(e)))
         if not self.long_pool.status_code == 200:
             self.logger.error(
                 'Mesos:Subscribe:Error: ' + str(self.long_pool.text)
