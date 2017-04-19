@@ -605,7 +605,8 @@ class MesosClient(object):
                     self.logger.info(
                         'Mesos:Subscribe:Stream-Id:' + self.streamId
                     )
-                    self.master_info = body['subscribed']['master_info']
+                    if 'master_info' in body['subscribed']:
+                        self.master_info = body['subscribed']['master_info']
                     self.__event_subscribed()
                 elif body['type'] == 'OFFERS':
                     mesos_offers = body['offers']['offers']
