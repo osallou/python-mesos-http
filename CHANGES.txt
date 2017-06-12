@@ -1,3 +1,6 @@
+0.2.3:
+    Add more debug logging
+    Fix loop condition when subscription fails
 0.2.2:
     Print exception stack in case of subscribe exception
 0.2.1:

@@ -540,7 +540,7 @@ class MesosClient(object):
             subscribe['framework_id'] = {'value': self.frameworkId}
         ok = False
         self.long_pool = None
-        while not ok or self.mesos_url_index == len(self.mesos_urls):
+        while (not ok) and self.mesos_url_index < len(self.mesos_urls):
             try:
                 self.mesos_url = self.mesos_urls[self.mesos_url_index]
                 if self.mesos_url.startswith('zk://'):
@@ -559,8 +559,10 @@ class MesosClient(object):
                     stream=True,
                     headers=headers
                 )
+                self.logger.debug("Subscribe HTTP answer: " + str(self.long_pool.status_code))
                 if self.long_pool.status_code == 307:
                     # Not leader, reconnect to leader
+                    self.logger.info("Not master, connect to " + self.long_pool.headers['Location'])
                     if 'Location' in self.long_pool.headers:
                         self.mesos_url = self.long_pool.headers['Location']
                         self.long_pool = requests.post(
