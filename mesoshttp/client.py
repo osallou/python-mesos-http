@@ -573,7 +573,7 @@ class MesosClient(object):
                 self.mesos_url_index = 0
             except Exception as e:
                 self.mesos_url_index += 1
-                self.logger.error('Mesos:Subscribe:Failed for %s: %s' % (self.mesos_url, str(e)))
+                self.logger.exception('Mesos:Subscribe:Failed for %s: %s' % (self.mesos_url, str(e)))
         if not self.long_pool.status_code == 200:
             self.logger.error(
                 'Mesos:Subscribe:Error: ' + str(self.long_pool.text)
