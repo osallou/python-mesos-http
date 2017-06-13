@@ -19,6 +19,10 @@ Callbacks will "block" the mesos message treatment, so they should be short, or 
 
 This library does not implement all options of mesos.proto and manages schedulers only (not executors). Implemented features should be enough to implement a scheduler, if something is missing, please ask, or contribute ;-)
 
+# Install
+
+    pip install mesoshttp
+
 # Documentation
 
 [![Documentation Status](https://readthedocs.org/projects/osalloupython-mesos-http/badge/?version=latest)](http://osalloupython-mesos-http.readthedocs.io/en/latest/?badge=latest)
