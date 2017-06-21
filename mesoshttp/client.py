@@ -408,6 +408,7 @@ class MesosClient(object):
         is_ok = True
         if event not in self.callbacks:
             self.logger.debug('No callback for %s: %s' % (event, str(message)))
+            return is_ok
         for callback in self.callbacks[event]:
             try:
                 self.logger.debug(

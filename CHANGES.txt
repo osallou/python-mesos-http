@@ -1,3 +1,5 @@
+0.2.4:
+    Fix case of event with no registered callback
 0.2.3:
     Add more debug logging
     Fix loop condition when subscription fails
