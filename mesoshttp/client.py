@@ -328,7 +328,9 @@ class MesosClient(object):
             MesosClient.SUBSCRIBED: [],
             MesosClient.OFFERS: [],
             MesosClient.UPDATE: [],
-            MesosClient.ERROR: []
+            MesosClient.ERROR: [],
+            MesosClient.FAILURE: [],
+            MesosClient.RESCIND: [],
         }
 
         self.authenticate = False
