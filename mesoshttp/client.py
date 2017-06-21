@@ -29,6 +29,7 @@ class MesosClient(object):
     ERROR = 'ERROR'
     UPDATE = 'UPDATE'
     FAILURE = 'FAILURE'
+    RESCIND = 'RESCIND'
 
     class SchedulerDriver(CoreMesosObject):
         '''
@@ -387,6 +388,8 @@ class MesosClient(object):
             self.callbacks[MesosClient.ERROR].append(callback)
         elif eventName == MesosClient.FAILURE:
             self.callbacks[MesosClient.FAILURE].append(callback)
+        elif eventName == MesosClient.RESCIND:
+            self.callbacks[MesosClient.RESCIND].append(callback)
         else:
             self.logger.error('No event %s' % (eventName))
             return False
