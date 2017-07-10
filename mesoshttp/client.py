@@ -445,6 +445,8 @@ class MesosClient(object):
                 self.logger.error('http connection timeout: ' + str(e))
             except requests.exceptions.ChunkedEncodingError as e:
                 self.logger.error('http connection error: ' + str(e))
+            except:
+                self.logger.exception('Unexpected error with mesos connection')
             time.sleep(MesosClient.WAIT_TIME)
         else:
             self.logger.error('All connection tries failed')
@@ -582,11 +584,19 @@ class MesosClient(object):
             except Exception as e:
                 self.mesos_url_index += 1
                 self.logger.exception('Mesos:Subscribe:Failed for %s: %s' % (self.mesos_url, str(e)))
-        if not self.long_pool.status_code == 200:
+
+        if self.long_pool is not None:
+            if not self.long_pool.status_code == 200:
+                self.logger.error(
+                    'Mesos:Subscribe:Error: ' + str(self.long_pool.text)
+                )
+                return False
+        else:
             self.logger.error(
-                'Mesos:Subscribe:Error: ' + str(self.long_pool.text)
+                'Mesos:Subscribe:Error: Failed to connect to a mesos master'
             )
             return False
+
         self.streamId = self.long_pool.headers['Mesos-Stream-Id']
         first_line = True
         for line in self.long_pool.iter_lines():

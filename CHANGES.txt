@@ -1,3 +1,5 @@
+0.2.7:
+    Fix retry management, catching more possible errors
 0.2.6:
     Fix FAILURE and RESCIND management
 0.2.5:
