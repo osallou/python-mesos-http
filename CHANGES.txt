@@ -1,3 +1,6 @@
+0.2.8:
+    Manage disconnection and reconnection to mesos master
+    Add DISCONNECTED and RECONNECTED events
 0.2.7:
     Fix retry management, catching more possible errors
 0.2.6:

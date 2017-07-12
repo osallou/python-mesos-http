@@ -31,6 +31,9 @@ class MesosClient(object):
     FAILURE = 'FAILURE'
     RESCIND = 'RESCIND'
 
+    DISCONNECTED = 'DISCONNECTED'
+    RECONNECTED = 'RECONNECTED'
+
     class SchedulerDriver(CoreMesosObject):
         '''
         Handler to communicate with scheduler
@@ -143,11 +146,13 @@ class MesosClient(object):
                 }
             }
             try:
-                requests.post(
+                res = requests.post(
                     self.mesos_url + '/api/v1/scheduler',
                     json.dumps(message),
                     headers=headers
                 )
+                self.logger.debug('##OSALLOU ' + str(res.status_code))
+                self.logger.debug('##OSALLOU ' + str(res.text))
             except Exception as e:
                 self.logger.error('Mesos:Kill:Exception:' + str(e))
                 raise MesosException(e)
@@ -250,11 +255,13 @@ class MesosClient(object):
             }
 
             try:
-                requests.post(
+                res = requests.post(
                     self.mesos_url + '/api/v1/scheduler',
                     json.dumps(message),
                     headers=headers
                 )
+                self.logger.debug('##OSALLOU ' + str(res.status_code))
+                self.logger.debug('##OSALLOU ' + str(res.text))
             except Exception as e:
                 raise MesosException(e)
             return True
@@ -280,7 +287,8 @@ class MesosClient(object):
         This will enable framework reconnection and will not kill running jobs
         '''
         self.disconnect = True
-        self.long_pool.connection.close()
+        if self.long_pool:
+            self.long_pool.connection.close()
 
     def set_role(self, role_name):
         '''
@@ -331,6 +339,8 @@ class MesosClient(object):
             MesosClient.ERROR: [],
             MesosClient.FAILURE: [],
             MesosClient.RESCIND: [],
+            MesosClient.DISCONNECTED: [],
+            MesosClient.RECONNECTED: []
         }
 
         self.authenticate = False
@@ -341,6 +351,7 @@ class MesosClient(object):
         self.checkpoint = True
         self.capabilities = []
         self.master_info = None
+        self.disconnected = False
 
     def set_credentials(self, principal, secret):
         '''
@@ -392,6 +403,10 @@ class MesosClient(object):
             self.callbacks[MesosClient.FAILURE].append(callback)
         elif eventName == MesosClient.RESCIND:
             self.callbacks[MesosClient.RESCIND].append(callback)
+        elif eventName == MesosClient.DISCONNECTED:
+            self.callbacks[MesosClient.DISCONNECTED].append(callback)
+        elif eventName == MesosClient.RECONNECTED:
+            self.callbacks[MesosClient.RECONNECTED].append(callback)
         else:
             self.logger.error('No event %s' % (eventName))
             return False
@@ -408,6 +423,12 @@ class MesosClient(object):
 
     def __event_subscribed(self):
         return self.__event_callback(MesosClient.SUBSCRIBED, self.get_driver())
+
+    def __event_disconnected(self):
+        return self.__event_callback(MesosClient.DISCONNECTED, 'mesos master disconnected')
+
+    def __event_reconnected(self):
+        return self.__event_callback(MesosClient.RECONNECTED, 'mesos master reconnected')
 
     def __event_callback(self, event, message):
         is_ok = True
@@ -435,19 +456,33 @@ class MesosClient(object):
         On message, callbacks will be called.
         '''
         res = False
-        for i in range(self.max_reconnect):
+        #for i in range(self.max_reconnect):
+        while not self.stop and not self.disconnect:
             try:
+                self.driver = None
+                self.mesos_url_index = 0
+                self.logger.info("try to register")
                 res = self.__register()
-                break
             except requests.exceptions.ConnectionError as e:
                 self.logger.error('http connection error: ' + str(e))
+                self.__event_disconnected()
+                self.disconnected = True
             except socket.timeout as e:
                 self.logger.error('http connection timeout: ' + str(e))
+                self.__event_disconnected()
+                self.disconnected = True
             except requests.exceptions.ChunkedEncodingError as e:
                 self.logger.error('http connection error: ' + str(e))
+                self.__event_disconnected()
+                self.disconnected = True
             except:
                 self.logger.exception('Unexpected error with mesos connection')
-            time.sleep(MesosClient.WAIT_TIME)
+                self.__event_disconnected()
+                self.disconnected = True
+            if not self.stop and not self.disconnect:
+                if not res:
+                    self.logger.error('Failed to register, retrying...')
+                time.sleep(MesosClient.WAIT_TIME)
         else:
             self.logger.error('All connection tries failed')
         return res
@@ -598,6 +633,11 @@ class MesosClient(object):
             return False
 
         self.streamId = self.long_pool.headers['Mesos-Stream-Id']
+
+        if self.disconnected:
+            self.__event_reconnected()
+            self.disconnected = False
+
         first_line = True
         for line in self.long_pool.iter_lines():
             if self.stop or self.disconnect:
