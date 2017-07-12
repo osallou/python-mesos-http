@@ -146,13 +146,11 @@ class MesosClient(object):
                 }
             }
             try:
-                res = requests.post(
+                requests.post(
                     self.mesos_url + '/api/v1/scheduler',
                     json.dumps(message),
                     headers=headers
                 )
-                self.logger.debug('##OSALLOU ' + str(res.status_code))
-                self.logger.debug('##OSALLOU ' + str(res.text))
             except Exception as e:
                 self.logger.error('Mesos:Kill:Exception:' + str(e))
                 raise MesosException(e)
@@ -255,13 +253,11 @@ class MesosClient(object):
             }
 
             try:
-                res = requests.post(
+                requests.post(
                     self.mesos_url + '/api/v1/scheduler',
                     json.dumps(message),
                     headers=headers
                 )
-                self.logger.debug('##OSALLOU ' + str(res.status_code))
-                self.logger.debug('##OSALLOU ' + str(res.text))
             except Exception as e:
                 raise MesosException(e)
             return True
