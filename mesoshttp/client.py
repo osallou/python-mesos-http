@@ -531,6 +531,8 @@ class MesosClient(object):
             if not child.startswith('json'):
                 continue
             (data, zk_mesos) = zk.get('/mesos/' + child)
+            if sys.version_info.major == 3:
+                data = data.decode("utf-8")
             master_info = json.loads(data)
             if 'pid' in master_info and master_info['pid'].startswith('master@'):
                 mesos_master = 'http://' + master_info['pid'].replace('master@', '')
