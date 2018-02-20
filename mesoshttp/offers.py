@@ -58,10 +58,10 @@ class Offer(CoreMesosObject):
             "type": "ACCEPT",
             "accept": {
                 "offer_ids": offer_ids,
-                "operations": {
+                "operations": [{
                     'type': 'LAUNCH',
                     'launch': {'task_infos': tasks}
-                }
+                }]
             }
         }
         message = json.dumps(message)
