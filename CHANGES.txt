@@ -1,3 +1,5 @@
+0.2.12:
+
 0.2.11:
     Merge #1, Operations in a Accept message is a list
         Operations was set to a dict, and worked, but interface defines it as a list.
