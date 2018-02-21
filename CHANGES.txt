@@ -1,26 +1,41 @@
+0.2.11:
+    Merge #1, Operations in a Accept message is a list
+        Operations was set to a dict, and worked, but interface defines it as a list.
+
 0.2.10:
     Fix python3 zookeeper data decoding
+
 0.2.9:
     Remove debug logs
+
 0.2.8:
     Manage disconnection and reconnection to mesos master
     Add DISCONNECTED and RECONNECTED events
+
 0.2.7:
     Fix retry management, catching more possible errors
+
 0.2.6:
     Fix FAILURE and RESCIND management
+
 0.2.5:
     Add RESCIND callback support
+
 0.2.4:
     Fix case of event with no registered callback
+
 0.2.3:
     Add more debug logging
     Fix loop condition when subscription fails
+
 0.2.2:
     Print exception stack in case of subscribe exception
+
 0.2.1:
     Fix case where master info is not available
+
 0.2.0:
     Add zookeeper detection
+
 0.1.0:
     Creation
