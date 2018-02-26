@@ -1,4 +1,5 @@
 0.2.12:
+    Add optional hostname and webui_url to framework (PR #2).
 
 0.2.11:
     Merge #1, Operations in a Accept message is a list
