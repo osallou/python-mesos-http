@@ -301,6 +301,8 @@ class MesosClient(object):
             frameworkId=None,
             frameworkName='Mesos HTTP framework',
             frameworkUser='root',
+            frameworkHostname='',
+            frameworkWebUI='',
             max_reconnect=3):
         '''
         Create a frameworkId
@@ -313,11 +315,17 @@ class MesosClient(object):
         :type frameworkName: str
         :param frameworkUser: user to use (will run tasks as user), defaults to root
         :type frameworkUser: str
+        :param frameworkHostname: Hostname of the framework
+        :type frameworkHostname: str
+        :param frameworkWebUI: URL of the framework WebUI
+        :type frameworkWebUI: str
         :param max_reconnect: number of reconnection retries when connection fails
         :type max_reconnect: int  defaults to 3
         '''
         self.frameworkId = frameworkId
         self.frameworkName = frameworkName
+        self.frameworkHostname = frameworkHostname
+        self.frameworkWebUI = frameworkWebUI
         self.frameworkRole = None
         self.frameworkUser = frameworkUser
         self.mesos_urls = mesos_urls
@@ -553,7 +561,9 @@ class MesosClient(object):
             "subscribe": {
                 "framework_info": {
                     "user": self.frameworkUser,
-                    "name": self.frameworkName
+                    "name": self.frameworkName,
+                    "hostname": self.frameworkHostname,
+                    "webui_url": self.frameworkWebUI
                 }
             }
         }
