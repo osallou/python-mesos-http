@@ -31,6 +31,8 @@ class Offer(CoreMesosObject):
 
         :param operations: JSON TaskInfo instances to accept in current offer
         :type operations: list of json TaskInfo
+        :param options: Optional offer additional params (filters, ...)
+        :type options: dict
         '''
         if not operations:
             self.logger.debug('Mesos:Accept:no operation to accept')
@@ -83,6 +85,9 @@ class Offer(CoreMesosObject):
     def decline(self, options=None):
         '''
         Decline offer
+
+        :param options: Optional offer additional params (filters, ...)
+        :type options: dict
         '''
         if not self.offer:
             return
