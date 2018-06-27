@@ -460,7 +460,6 @@ class MesosClient(object):
         On message, callbacks will be called.
         '''
         res = False
-        #for i in range(self.max_reconnect):
         while not self.stop and not self.disconnect:
             try:
                 self.driver = None
@@ -518,7 +517,6 @@ class MesosClient(object):
         '''
         self.capabilities.append({'type': capability})
 
-
     def __zk_detect(self, zk_url, prefix='/mesos'):
         '''
         Try to get master url info from zookeeper
@@ -548,7 +546,6 @@ class MesosClient(object):
         zk.stop()
         self.logger.debug('Zookeeper mesos master: %s' % (str(mesos_master)))
         return mesos_master
-
 
     def __register(self):
         python_version = sys.version_info.major

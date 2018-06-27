@@ -1,3 +1,6 @@
+0.2.13
+    Merge #3 Optionally set refuse_seconds filter in ACCEPT and DECLINE requests via new *options* field in methods
+
 0.2.12:
     Add optional hostname and webui_url to framework (PR #2).
 
