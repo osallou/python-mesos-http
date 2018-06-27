@@ -25,7 +25,7 @@ class Offer(CoreMesosObject):
         '''
         return self.offer
 
-    def accept(self, operations):
+    def accept(self, operations, options=None):
         '''
         Accept offer with task operations
 
@@ -64,6 +64,9 @@ class Offer(CoreMesosObject):
                 }]
             }
         }
+        if options and options.get('filters'):
+            message["accept"]["filters"] = options.get('filters')
+
         message = json.dumps(message)
         try:
             r = requests.post(
@@ -77,7 +80,7 @@ class Offer(CoreMesosObject):
             raise MesosException(e)
         return True
 
-    def decline(self):
+    def decline(self, options=None):
         '''
         Decline offer
         '''
@@ -95,6 +98,8 @@ class Offer(CoreMesosObject):
                 "offer_ids": []
             }
         }
+        if options and options.get('filters'):
+            offers_decline["decline"]["filters"] = options.get('filters')
 
         self.logger.debug('Mesos:Decline:Offer:' + self.offer['id']['value'])
         offers_decline['decline']['offer_ids'].append(
