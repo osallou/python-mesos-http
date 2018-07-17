@@ -713,3 +713,62 @@ class MesosClient(object):
                 if line[count_bytes:]:
                     count_bytes = int(line[count_bytes:])
         return True
+
+    def combine_offers(self, offers, operations, options=None):
+        '''
+        Accept offers with task operations
+
+        :param offers: offers to be accepted
+        :type offers: list
+        :param operations: JSON TaskInfo instances to accept
+        :type operations: list of json TaskInfo
+        :param options: optional filters
+        :type options: JSON filters instances
+
+        This method does not check if the operations are valid
+        JSON TaskInfo instances and if conform with the offers.
+        '''
+        if not operations:
+            self.logger.debug('Mesos:Accept:no operation to accept')
+            return True
+
+        if not offers:
+            self.logger.debug('Mesos:Accept:no offers to accept')
+            return True
+
+        ids = [o.get_offer()['id']['value'] for o in offers]
+        offer_ids = [{'value': oid} for oid in ids]
+        self.logger.debug('Mesos:COMBINE Offer ids:' + ','.join(ids))
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Mesos-Stream-Id': self.streamId
+        }
+
+        message = {
+            "framework_id": {"value": self.frameworkId},
+            "type": "ACCEPT",
+            "accept": {
+                "offer_ids": offer_ids,
+                "operations": [{
+                    'type': 'LAUNCH',
+                    'launch': {'task_infos': operations}
+                }]
+            }
+        }
+        if options and options.get('filters'):
+            message["accept"]["filters"] = options.get('filters')
+
+        message = json.dumps(message)
+        try:
+            r = requests.post(
+                self.mesos_url + '/api/v1/scheduler',
+                message,
+                headers=headers
+            )
+            self.logger.debug('Mesos:Accept:' + str(message))
+            self.logger.debug('Mesos:Accept:Anwser:%d:%s' % (r.status_code, r.text))
+        except Exception as e:
+            raise MesosException(e)
+        return True
