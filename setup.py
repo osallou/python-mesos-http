@@ -25,7 +25,7 @@ config = {
     'author': 'Olivier Sallou',
     'author_email': 'olivier.sallou@irisa.fr',
     'download_url': 'https://github.com/osallou/python-mesos-http',
-    'version': '0.2.13',
+    'version': '0.2.14',
      'classifiers': [
         # How mature is this project? Common values are
         #   3 - Alpha
