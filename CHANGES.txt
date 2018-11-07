@@ -1,3 +1,5 @@
+0.3.0:
+    Add DCOS Strict security support (Merge #6)
 0.2.14:
     Merge #4 Extend client to combine offers
 
