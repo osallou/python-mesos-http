@@ -1,4 +1,4 @@
-requests
-twitter.common.recordio
+cryptography
 kazoo
-
+pyjwt
+requests

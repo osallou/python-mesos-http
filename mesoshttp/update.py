@@ -12,8 +12,8 @@ class Update(CoreMesosObject):
     This class manages Update message from Mesos master
     '''
 
-    def __init__(self, mesos_url, frameworkId, streamId, mesosUpdate):
-        CoreMesosObject.__init__(self, mesos_url, frameworkId, streamId)
+    def __init__(self, mesos_url, frameworkId, streamId, mesosUpdate, requests_auth=None, verify=True):
+        CoreMesosObject.__init__(self, mesos_url, frameworkId, streamId, requests_auth, verify)
         self.logger = logging.getLogger(__name__)
         self.mesosUpdate = mesosUpdate
 
@@ -48,7 +48,10 @@ class Update(CoreMesosObject):
         try:
             requests.post(
                 self.mesos_url + '/api/v1/scheduler',
-                json.dumps(acknowledge), headers=headers
+                json.dumps(acknowledge),
+                headers=headers,
+                auth=self.requests_auth,
+                verify=self.verify
             )
         except Exception as e:
             raise MesosException(e)

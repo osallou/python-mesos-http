@@ -12,8 +12,8 @@ class Offer(CoreMesosObject):
     Wrapper class for Mesos offers
     '''
 
-    def __init__(self, mesos_url, frameworkId, streamId, mesosOffer):
-        CoreMesosObject.__init__(self, mesos_url, frameworkId, streamId)
+    def __init__(self, mesos_url, frameworkId, streamId, mesosOffer, requests_auth=None, verify=True):
+        CoreMesosObject.__init__(self, mesos_url, frameworkId, streamId, requests_auth, verify)
         self.logger = logging.getLogger(__name__)
         self.offer = mesosOffer
 
@@ -74,7 +74,9 @@ class Offer(CoreMesosObject):
             r = requests.post(
                 self.mesos_url + '/api/v1/scheduler',
                 message,
-                headers=headers
+                headers=headers,
+                auth=self.requests_auth,
+                verify=self.verify
             )
             self.logger.debug('Mesos:Accept:' + str(message))
             self.logger.debug('Mesos:Accept:Anwser:%d:%s' % (r.status_code, r.text))
@@ -114,7 +116,9 @@ class Offer(CoreMesosObject):
             self.r = requests.post(
                 self.mesos_url + '/api/v1/scheduler',
                 json.dumps(offers_decline),
-                headers=headers
+                headers=headers,
+                auth=self.requests_auth,
+                verify=self.verify
             )
         except Exception as e:
             raise MesosException(e)

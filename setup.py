@@ -45,9 +45,11 @@ config = {
         'Programming Language :: Python :: 3.4'
     ],
     'install_requires': [
-                         'requests',
-                         'twitter.common.recordio',
-                         'kazoo'
+                         'cryptography',
+                         'kazoo',
+                         'pyjwt',
+                         'requests'
+
                          ],
     'tests_require': ['nose', 'mock', 'flake8'],
     'test_suite': 'nose.collector',

@@ -5,6 +5,9 @@ import socket
 import sys
 
 import requests
+from requests.exceptions import ConnectionError
+
+from mesoshttp.acs import DCOSServiceAuth
 
 from mesoshttp.offers import Offer
 from mesoshttp.core import CoreMesosObject
@@ -39,13 +42,13 @@ class MesosClient(object):
         Handler to communicate with scheduler
 
         `MesosClient.SchedulerDriver` instance is available after the
-        SUBSCRIBED event with the subcribed event.
+        SUBSCRIBED event with the subscribed event.
         '''
-        def __init__(self, mesos_url, frameworkId, streamId):
+        def __init__(self, mesos_url, frameworkId, streamId, requests_auth=None, verify=True):
             '''
             Create a driver instance related to created framework
             '''
-            CoreMesosObject.__init__(self, mesos_url, frameworkId, streamId)
+            CoreMesosObject.__init__(self, mesos_url, frameworkId, streamId, requests_auth, verify)
             self.driver = None
 
         def tearDown(self):
@@ -65,7 +68,9 @@ class MesosClient(object):
                 requests.post(
                     self.mesos_url + '/api/v1/scheduler',
                     json.dumps(teardown),
-                    headers=headers
+                    headers=headers,
+                    auth=self.requests_auth,
+                    verify=self.verify
                 )
             except Exception as e:
                 self.logger.error('Mesos:Teardown:Error:' + str(e))
@@ -93,7 +98,9 @@ class MesosClient(object):
                 requests.post(
                     self.mesos_url + '/api/v1/scheduler',
                     json.dumps(revive),
-                    headers=headers
+                    headers=headers,
+                    auth=self.requests_auth,
+                    verify=self.verify
                 )
             except Exception as e:
                 raise MesosException(e)
@@ -117,7 +124,9 @@ class MesosClient(object):
                 requests.post(
                     self.mesos_url + '/api/v1/scheduler',
                     json.dumps(revive),
-                    headers=headers
+                    headers=headers,
+                    auth=self.requests_auth,
+                    verify=self.verify
                 )
             except Exception as e:
                 raise MesosException(e)
@@ -149,7 +158,9 @@ class MesosClient(object):
                 requests.post(
                     self.mesos_url + '/api/v1/scheduler',
                     json.dumps(message),
-                    headers=headers
+                    headers=headers,
+                    auth=self.requests_auth,
+                    verify=self.verify
                 )
             except Exception as e:
                 self.logger.error('Mesos:Kill:Exception:' + str(e))
@@ -183,7 +194,9 @@ class MesosClient(object):
                 requests.post(
                     self.mesos_url + '/api/v1/scheduler',
                     json.dumps(message),
-                    headers=headers
+                    headers=headers,
+                    auth=self.requests_auth,
+                    verify=self.verify
                 )
             except Exception as e:
                 raise MesosException(e)
@@ -221,7 +234,9 @@ class MesosClient(object):
                 requests.post(
                     self.mesos_url + '/api/v1/scheduler',
                     json.dumps(message),
-                    headers=headers
+                    headers=headers,
+                    auth=self.requests_auth,
+                    verify=self.verify
                 )
             except Exception as e:
                 raise MesosException(e)
@@ -256,7 +271,9 @@ class MesosClient(object):
                 requests.post(
                     self.mesos_url + '/api/v1/scheduler',
                     json.dumps(message),
-                    headers=headers
+                    headers=headers,
+                    auth=self.requests_auth,
+                    verify=self.verify
                 )
             except Exception as e:
                 raise MesosException(e)
@@ -272,7 +289,9 @@ class MesosClient(object):
             self.driver = MesosClient.SchedulerDriver(
                 self.mesos_url,
                 frameworkId=self.frameworkId,
-                streamId=self.streamId
+                streamId=self.streamId,
+                requests_auth=self.requests_auth,
+                verify=self.verify
             )
         return self.driver
 
@@ -347,7 +366,6 @@ class MesosClient(object):
             MesosClient.RECONNECTED: []
         }
 
-        self.authenticate = False
         self.principal = None
         self.secret = None
         self.long_pool = None
@@ -356,6 +374,8 @@ class MesosClient(object):
         self.capabilities = []
         self.master_info = None
         self.disconnected = False
+        self.requests_auth = None
+        self.verify = True
 
     def set_credentials(self, principal, secret):
         '''
@@ -366,9 +386,31 @@ class MesosClient(object):
         :param secret: password
         :type secret: str
         '''
-        self.authenticate = True
         self.principal = principal
         self.secret = secret
+
+    def set_service_account(self, service_secret, verify=False):
+        '''
+        Set credentials to authenticate with DCOS and Mesos Master
+
+        :param service_secret: Optional DCOS Service account secret. Supersedes principal / secret.
+        :type service_secret: dict
+        :param verify: validate HTTPS fronted Mesos API using CA root trusts, defaults to False
+        :type verify: bool
+        '''
+
+        self.requests_auth = DCOSServiceAuth(service_secret)
+        self.principal = self.requests_auth.principal
+
+        cert_file = 'dcos-ca.crt'
+
+        if not verify:
+            response = requests.get('https://leader.mesos/ca/' + cert_file, verify=False)
+
+            if response.status_code == 200:
+                with open(cert_file, 'w') as cert:
+                    cert.write(response.text)
+        self.verify = cert_file
 
     def tearDown(self):
         '''
@@ -460,8 +502,10 @@ class MesosClient(object):
         On message, callbacks will be called.
         '''
         res = False
+        attempt = 0
         while not self.stop and not self.disconnect:
             try:
+                attempt += 1
                 self.driver = None
                 self.mesos_url_index = 0
                 self.logger.info("try to register")
@@ -485,6 +529,8 @@ class MesosClient(object):
             if not self.stop and not self.disconnect:
                 if not res:
                     self.logger.error('Failed to register, retrying...')
+                if attempt >= self.max_reconnect:
+                    break
                 time.sleep(MesosClient.WAIT_TIME)
         else:
             self.logger.error('All connection tries failed')
@@ -541,7 +587,15 @@ class MesosClient(object):
                 data = data.decode("utf-8")
             master_info = json.loads(data)
             if 'pid' in master_info and master_info['pid'].startswith('master@'):
-                mesos_master = 'http://' + master_info['pid'].replace('master@', '')
+                mesos_master = master_info['pid'].replace('master@', '')
+
+                try:
+                    requests.get('http://' + mesos_master)
+                    mesos_master = 'http://' + mesos_master
+                # If we get connection closed, assume we are in strict mode and set https protocol
+                except ConnectionError:
+                    mesos_master = 'https://' + mesos_master
+
                 break
         zk.stop()
         self.logger.debug('Zookeeper mesos master: %s' % (str(mesos_master)))
@@ -574,12 +628,13 @@ class MesosClient(object):
         if self.failover_timeout:
             subscribe['subscribe']['framework_info']['failover_timeout'] = self.failover_timeout
 
-        if self.authenticate:
+        if self.principal:
             subscribe['subscribe']['framework_info']['principal'] = self.principal
-            credentials = [
-                {'principal': self.principal, 'secret': self.secret}
-            ]
-            subscribe['subscribe']['credentials'] = credentials
+            if self.secret:
+                credentials = [
+                    {'principal': self.principal, 'secret': self.secret}
+                ]
+                subscribe['subscribe']['credentials'] = credentials
 
         if self.frameworkId:
             subscribe['subscribe']['framework_info']['id'] = {
@@ -605,7 +660,10 @@ class MesosClient(object):
                     self.mesos_url + '/api/v1/scheduler',
                     json.dumps(subscribe),
                     stream=True,
-                    headers=headers
+                    headers=headers,
+                    verify=self.verify,
+                    auth=self.requests_auth
+
                 )
                 self.logger.debug("Subscribe HTTP answer: " + str(self.long_pool.status_code))
                 if self.long_pool.status_code == 307:
@@ -617,7 +675,9 @@ class MesosClient(object):
                             self.mesos_url + '/api/v1/scheduler',
                             json.dumps(subscribe),
                             stream=True,
-                            headers=headers
+                            headers=headers,
+                            auth=self.requests_auth,
+                            verify=self.verify
                         )
                 ok = True
                 self.mesos_url_index = 0
@@ -680,7 +740,9 @@ class MesosClient(object):
                                 self.mesos_url,
                                 frameworkId=self.frameworkId,
                                 streamId=self.streamId,
-                                mesosOffer=mesos_offer
+                                mesosOffer=mesos_offer,
+                                requests_auth=self.requests_auth,
+                                verify=self.verify
                             )
                         )
                     self.__event_offers(offers)
@@ -690,7 +752,9 @@ class MesosClient(object):
                         self.mesos_url,
                         frameworkId=self.frameworkId,
                         streamId=self.streamId,
-                        mesosUpdate=mesos_update
+                        mesosUpdate=mesos_update,
+                        requests_auth=self.requests_auth,
+                        verify=self.verify 
                     )
                     update_event.ack()
                     self.__event_update(mesos_update)
@@ -765,7 +829,9 @@ class MesosClient(object):
             r = requests.post(
                 self.mesos_url + '/api/v1/scheduler',
                 message,
-                headers=headers
+                headers=headers,
+                auth=self.requests_auth,
+                verify=self.verify
             )
             self.logger.debug('Mesos:Accept:' + str(message))
             self.logger.debug('Mesos:Accept:Anwser:%d:%s' % (r.status_code, r.text))
