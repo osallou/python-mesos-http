@@ -322,7 +322,8 @@ class MesosClient(object):
             frameworkUser='root',
             frameworkHostname='',
             frameworkWebUI='',
-            max_reconnect=3):
+            max_reconnect=3,
+            connection_timeout=None):
         '''
         Create a frameworkId
 
@@ -340,6 +341,8 @@ class MesosClient(object):
         :type frameworkWebUI: str
         :param max_reconnect: number of reconnection retries when connection fails
         :type max_reconnect: int  defaults to 3
+        :param connection_timeout: sets a timeout for scheduler connection loop
+        :type connection_timeout: defaults to None (no timeout)
         '''
         self.frameworkId = frameworkId
         self.frameworkName = frameworkName
@@ -370,6 +373,7 @@ class MesosClient(object):
         self.secret = None
         self.long_pool = None
         self.failover_timeout = None
+        self.connection_timeout = connection_timeout
         self.checkpoint = True
         self.capabilities = []
         self.master_info = None
@@ -656,15 +660,28 @@ class MesosClient(object):
                 self.logger.warn(
                     'Try to connect to master: %s' % (self.mesos_url)
                 )
-                self.long_pool = requests.post(
-                    self.mesos_url + '/api/v1/scheduler',
-                    json.dumps(subscribe),
-                    stream=True,
-                    headers=headers,
-                    verify=self.verify,
-                    auth=self.requests_auth
 
-                )
+                if self.connection_timeout is not None:
+                    self.logger.debug("connection timeout set")
+                    self.long_pool = requests.post(
+                        self.mesos_url + '/api/v1/scheduler',
+                        json.dumps(subscribe),
+                        stream=True,
+                        headers=headers,
+                        verify=self.verify,
+                        auth=self.requests_auth,
+                        timeout=self.connection_timeout
+                    )
+                else:
+                    self.long_pool = requests.post(
+                        self.mesos_url + '/api/v1/scheduler',
+                        json.dumps(subscribe),
+                        stream=True,
+                        headers=headers,
+                        verify=self.verify,
+                        auth=self.requests_auth
+                    )
+
                 self.logger.debug("Subscribe HTTP answer: " + str(self.long_pool.status_code))
                 if self.long_pool.status_code == 307:
                     # Not leader, reconnect to leader
@@ -714,7 +731,7 @@ class MesosClient(object):
                 count_bytes = int(line)
                 first_line = False
                 continue
-            else:
+        else:
                 if python_version == 3:
                     line = line.decode('UTF-8')
                 body = json.loads(line[:count_bytes])
