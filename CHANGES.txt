@@ -1,5 +1,7 @@
+0.3.2:
+    Fix that breaks code PR #9
 0.3.1:
-     Add optional timeout to detect mesos disconnection
+     Add optional timeout to detect mesos disconnection PR #8
 0.3.0:
     Add DCOS Strict security support (Merge #6)
 0.2.14:
