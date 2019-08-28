@@ -731,7 +731,7 @@ class MesosClient(object):
                 count_bytes = int(line)
                 first_line = False
                 continue
-        else:
+            else:
                 if python_version == 3:
                     line = line.decode('UTF-8')
                 body = json.loads(line[:count_bytes])
