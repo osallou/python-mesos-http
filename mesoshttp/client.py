@@ -33,6 +33,7 @@ class MesosClient(object):
     UPDATE = 'UPDATE'
     FAILURE = 'FAILURE'
     RESCIND = 'RESCIND'
+    HEARTBEAT = 'HEARTBEAT'
 
     DISCONNECTED = 'DISCONNECTED'
     RECONNECTED = 'RECONNECTED'
@@ -366,7 +367,8 @@ class MesosClient(object):
             MesosClient.FAILURE: [],
             MesosClient.RESCIND: [],
             MesosClient.DISCONNECTED: [],
-            MesosClient.RECONNECTED: []
+            MesosClient.RECONNECTED: [],
+            MesosClient.HEARTBEAT: []
         }
 
         self.principal = None
@@ -457,6 +459,8 @@ class MesosClient(object):
             self.callbacks[MesosClient.DISCONNECTED].append(callback)
         elif eventName == MesosClient.RECONNECTED:
             self.callbacks[MesosClient.RECONNECTED].append(callback)
+        elif eventName == MesosClient.HEARTBEAT:
+            self.callbacks[MesosClient.HEARTBEAT].append(callback)
         else:
             self.logger.error('No event %s' % (eventName))
             return False
@@ -479,6 +483,9 @@ class MesosClient(object):
 
     def __event_reconnected(self):
         return self.__event_callback(MesosClient.RECONNECTED, 'mesos master reconnected')
+
+    def __event_heartbeat(self, heartbeat):
+        return self.__event_callback(MesosClient.HEARTBEAT, heartbeat)
 
     def __event_callback(self, event, message):
         is_ok = True
@@ -786,6 +793,7 @@ class MesosClient(object):
                     self.__event_callback(body['type'], body['failure'])
                 elif body['type'] == 'HEARTBEAT':
                     self.logger.debug('Mesos:Heartbeat')
+                    self.__event_heartbeat(body['type'])
                 else:
                     self.logger.warn(
                         '%s event no yet implemented' % (str(body['type']))
