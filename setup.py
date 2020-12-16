@@ -22,10 +22,12 @@ except UnicodeDecodeError:
 
 config = {
     'description': 'mesoshttp',
+    'long_description': README + '\n\n' + CHANGES,
+    'long_description_content_type': 'text/markdown',
     'author': 'Olivier Sallou',
     'author_email': 'olivier.sallou@irisa.fr',
     'download_url': 'https://github.com/osallou/python-mesos-http',
-    'version': '0.4.1',
+    'version': '0.4.2',
      'classifiers': [
         # How mature is this project? Common values are
         #   3 - Alpha
